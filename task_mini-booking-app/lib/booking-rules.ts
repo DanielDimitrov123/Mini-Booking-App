@@ -109,3 +109,24 @@ export function getAvailableStartTimes({
 
   return availableTimes;
 }
+
+export function isLondonPostcode(postcode: string): boolean {
+  const compact = postcode.trim().toUpperCase().replace(/\s+/g, "");
+
+  return /^(?:E|EC|N|NW|SE|SW|W|WC)\d[A-Z0-9]?\d[A-Z]{2}$/.test(compact);
+}
+
+export function canCancelBooking(
+  startsAt: Date | string,
+  status: string,
+  now: Date = new Date()
+): boolean {
+  const startTime = new Date(startsAt).getTime();
+
+  if (!Number.isFinite(startTime) || status !== "booked") {
+    return false;
+  }
+
+  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+  return startTime - now.getTime() >= twentyFourHoursMs;
+}
