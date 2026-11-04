@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "db:migrate": "knex migrate:latest",
+    "db:rollback": "knex migrate:rollback",
+    "db:seed": "knex seed:run",
+    "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.5.0",
     "next": "16.4.5",
     "pg": "^8.23.1",
     "react": "19.3.0",
