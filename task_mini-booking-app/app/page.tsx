@@ -47,6 +47,13 @@ export default async function HomePage() {
           </li>
         ))}
       </ul>
+
+      <a
+        href="/booking"
+        className="mt-4 inline-block rounded bg-black px-4 py-2 text-white"
+      >
+        Start booking
+      </a>
     </main>
   );
 }
