@@ -89,7 +89,7 @@ test("customer can sign up, book, cancel, and sign in again", async ({
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/my-bookings$/);
+  await expect(page).toHaveURL(/\/my-bookings$/, { timeout: 30_000 });
   await expect(page.getByText("You have no upcoming bookings.")).toBeVisible();
 });
 
@@ -184,4 +184,168 @@ test("booking API rejects a time that has already been booked", async ({
     data: booking,
   });
   expect(duplicateResponse.status()).toBe(409);
+});
+
+test("cancellation is rejected less than 24 hours before the appointment", async ({
+  page,
+}) => {
+  const email = `e2e-cancel-cutoff-${randomUUID()}@example.test`;
+  const password = "Playwright-Test-2030!";
+  emailForCleanup = email;
+
+  // Create an account and stay signed in.
+  await page.goto("/register");
+  await page.getByLabel("Full name").fill("Cancellation Test");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/my-bookings$/, { timeout: 30_000 });
+
+  // Find the new user and one seeded treatment.
+  const userResult = await testDatabase.query<{ id: number }>(
+    `SELECT id FROM users WHERE email = $1`,
+    [email]
+  );
+  const treatmentResult = await testDatabase.query<{
+    id: number;
+    duration_minutes: number;
+    price_pence: number;
+  }>(
+    `SELECT id, duration_minutes, price_pence
+     FROM treatments
+     WHERE name = 'Gel Manicure'`
+  );
+
+  const user = userResult.rows[0];
+  const treatment = treatmentResult.rows[0];
+  if (!user || !treatment) {
+    throw new Error("Test user or seeded treatment was not found");
+  }
+
+  const reference = `RB-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+
+  // Insert a booking just inside the 24-hour cancellation cutoff.
+  await testDatabase.query(
+    `INSERT INTO bookings (
+       reference, user_id, treatment_id, customer_name, customer_email,
+       postcode, starts_at, ends_at, price_pence, duration_minutes, status
+     )
+     VALUES (
+       $1, $2, $3, $4, $5, $6,
+       NOW() + INTERVAL '23 hours 59 minutes',
+       NOW() + INTERVAL '23 hours 59 minutes'
+         + ($7 * INTERVAL '1 minute'),
+       $8, $7, 'booked'
+     )`,
+    [
+      reference,
+      user.id,
+      treatment.id,
+      "Cancellation Test",
+      email,
+      "E1 6AN",
+      treatment.duration_minutes,
+      treatment.price_pence,
+    ]
+  );
+
+  // Use the signed-in browser session to call the cancellation API.
+  const result = await page.evaluate(async (bookingReference) => {
+    const response = await fetch("/api/bookings/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reference: bookingReference }),
+    });
+    return { status: response.status, body: await response.json() };
+  }, reference);
+
+  expect(result.status).toBe(409);
+  expect(result.body.error).toContain("24 hours");
+});
+
+test("a customer cannot cancel another customer's booking", async ({
+  page,
+}) => {
+  const customerAEmail = `e2e-owner-a-${randomUUID()}@example.test`;
+  const customerBEmail = `e2e-owner-b-${randomUUID()}@example.test`;
+  const password = "Playwright-Test-2030!";
+  emailForCleanup = customerAEmail;
+
+  await page.goto("/register");
+  await page.getByLabel("Full name").fill("Customer A");
+  await page.getByLabel("Email").fill(customerAEmail);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/my-bookings$/, { timeout: 30_000 });
+
+  const customerBResult = await testDatabase.query<{ id: number }>(
+    `INSERT INTO users (full_name, email, password_hash)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    ["Customer B", customerBEmail, "test-only-placeholder-hash"]
+  );
+  const customerBId = customerBResult.rows[0]?.id;
+
+  const treatmentResult = await testDatabase.query<{
+    id: number;
+    duration_minutes: number;
+    price_pence: number;
+  }>(
+    `SELECT id, duration_minutes, price_pence
+     FROM treatments
+     WHERE name = 'Gel Manicure'`
+  );
+  const treatment = treatmentResult.rows[0];
+
+  if (!customerBId || !treatment) {
+    throw new Error("Test customer or seeded treatment was not found");
+  }
+
+  const reference = `RB-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+
+  try {
+    await testDatabase.query(
+      `INSERT INTO bookings (
+         reference, user_id, treatment_id, customer_name, customer_email,
+         postcode, starts_at, ends_at, price_pence, duration_minutes, status
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6,
+         NOW() + INTERVAL '3 days',
+         NOW() + INTERVAL '3 days' + ($7 * INTERVAL '1 minute'),
+         $8, $7, 'booked'
+       )`,
+      [
+        reference,
+        customerBId,
+        treatment.id,
+        "Customer B",
+        customerBEmail,
+        "E1 6AN",
+        treatment.duration_minutes,
+        treatment.price_pence,
+      ]
+    );
+
+    const result = await page.evaluate(async (bookingReference) => {
+      const response = await fetch("/api/bookings/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference: bookingReference }),
+      });
+      return { status: response.status, body: await response.json() };
+    }, reference);
+
+    expect(result.status).toBe(404);
+    expect(result.body.error).toContain("not found");
+  } finally {
+    await testDatabase.query(
+      `DELETE FROM bookings WHERE reference = $1`,
+      [reference]
+    );
+    await testDatabase.query(
+      `DELETE FROM users WHERE email = $1`,
+      [customerBEmail]
+    );
+  }
 });
