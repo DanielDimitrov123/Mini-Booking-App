@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth, signOut } from "../../auth";
 import { pool } from "../../lib/db";
+import { canCancelBooking } from "../../lib/booking-rules";
+import { CancelButton } from "./cancel-button";
 
 type UpcomingBooking = {
+  status: string;
   reference: string;
   treatmentName: string;
   startsAt: Date;
@@ -42,6 +45,7 @@ export default async function MyBookingsPage() {
        b.reference,
        t.name AS "treatmentName",
        b.starts_at AS "startsAt",
+       b.status,
        b.price_pence AS "pricePence"
      FROM bookings b
      JOIN treatments t ON t.id = b.treatment_id
@@ -101,6 +105,13 @@ export default async function MyBookingsPage() {
               <p className="mt-2 text-sm text-gray-600">
                 Reference: {booking.reference}
               </p>
+                {canCancelBooking(booking.startsAt, booking.status) ? (
+                    <CancelButton reference={booking.reference} />
+                ) : (
+                    <p className="mt-4 text-sm text-gray-600">
+                        Cancellation closes 24 hours before the appointment.
+                    </p>
+                )}
             </li>
           ))}
         </ul>
