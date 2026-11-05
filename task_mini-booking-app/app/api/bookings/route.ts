@@ -5,6 +5,7 @@ import {
   getAvailableStartTimes,
   isLondonPostcode,
 } from "../../../lib/booking-rules";
+import { auth } from "../../../auth";
 
 const LONDON_TIME_ZONE = "Europe/London";
 
@@ -110,6 +111,18 @@ export async function POST(request: Request) {
       LONDON_TIME_ZONE
     );
 
+    const session = await auth();
+let userId: number | null = null;
+
+    if (session?.user?.email) {
+        const userResult = await pool.query<{ id: number }>(
+            `SELECT id FROM users WHERE email = $1`,
+            [session.user.email.toLowerCase()]
+        );
+        
+        userId = userResult.rows[0]?.id ?? null;
+    }
+
     const bookingsResult = await pool.query<{
       startsAt: Date;
       endsAt: Date;
@@ -154,30 +167,32 @@ export async function POST(request: Request) {
     const reference = `RB-${randomBytes(5).toString("hex").toUpperCase()}`;
 
     await pool.query(
-      `INSERT INTO bookings (
-         reference,
-         treatment_id,
-         customer_name,
-         customer_email,
-         postcode,
-         starts_at,
-         ends_at,
-         price_pence,
-         duration_minutes,
-         status
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'booked')`,
-      [
-        reference,
-        treatment.id,
-        fullName,
-        email,
-        postcode,
-        startsAt.toISOString(),
-        endsAt.toISOString(),
-        treatment.price_pence,
-        treatment.duration_minutes,
-      ]
+        `INSERT INTO bookings (
+            reference,
+            treatment_id,
+            user_id,
+            customer_name,
+            customer_email,
+            postcode,
+            starts_at,
+            ends_at,
+            price_pence,
+            duration_minutes,
+            status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'booked')`,
+        [
+            reference,
+            treatment.id,
+            userId,
+            fullName,
+            email,
+            postcode,
+            startsAt.toISOString(),
+            endsAt.toISOString(),
+            treatment.price_pence,
+            treatment.duration_minutes,
+        ]
     );
 
     return Response.json(
