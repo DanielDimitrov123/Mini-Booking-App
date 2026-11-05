@@ -11,6 +11,8 @@
     "db:rollback": "knex migrate:rollback",
     "db:seed": "knex seed:run",
     "db:setup": "npm run db:migrate && npm run db:seed"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
@@ -22,6 +24,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
