@@ -2,7 +2,7 @@
   "name": "task_mini-booking-app",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
+ "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -10,7 +10,7 @@
     "db:migrate": "knex migrate:latest",
     "db:rollback": "knex migrate:rollback",
     "db:seed": "knex seed:run",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
