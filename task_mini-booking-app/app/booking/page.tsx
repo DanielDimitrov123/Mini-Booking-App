@@ -133,7 +133,9 @@ export default function BookingPage() {
   return (
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-3xl font-semibold">Choose your appointment</h1>
-
+      <p className="mt-2 text-gray-600">
+        Choose a treatment and a time that works for you.
+      </p>
       {booking ? (
         <section className="mt-6 rounded-lg border border-gray-300 p-5">
           <h2 className="text-2xl font-semibold">Booking confirmed</h2>
