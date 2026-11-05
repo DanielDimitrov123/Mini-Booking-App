@@ -48,9 +48,6 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (!treatmentId || !date) {
-      setAvailableTimes([]);
-      setSelectedTime("");
-      setLoadingTimes(false);
       return;
     }
 
@@ -58,9 +55,6 @@ export default function BookingPage() {
 
     async function loadAvailability() {
       setError("");
-      setSelectedTime("");
-      setAvailableTimes([]);
-      setLoadingTimes(true);
 
       try {
         const params = new URLSearchParams({ treatmentId, date });
@@ -165,6 +159,10 @@ export default function BookingPage() {
               value={treatmentId}
               onChange={(event) => {
                 setTreatmentId(event.target.value);
+                setSelectedTime("");
+                setAvailableTimes([]);
+                setLoadingTimes(false);
+                setError("");
                 setBooking(null);
               }}
               className="mt-1 w-full rounded border border-gray-400 p-2"
@@ -190,6 +188,10 @@ export default function BookingPage() {
               value={date}
               onChange={(event) => {
                 setDate(event.target.value);
+                setSelectedTime("");
+                setAvailableTimes([]);
+                setLoadingTimes(false);
+                setError("");
                 setBooking(null);
               }}
               className="mt-1 w-full rounded border border-gray-400 p-2"
