@@ -3,6 +3,7 @@ import { auth, signOut } from "../../auth";
 import { pool } from "../../lib/db";
 import { canCancelBooking } from "../../lib/booking-rules";
 import { CancelButton } from "./cancel-button";
+import { ProfileEditForm } from "./profile-edit-form";
 export const instant = false;
 
 type UpcomingBooking = {
@@ -27,7 +28,7 @@ const currencyFormat = new Intl.NumberFormat("en-GB", {
 export default async function MyBookingsPage() {
   const session = await auth();
 
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
@@ -38,8 +39,8 @@ export default async function MyBookingsPage() {
   }>(
     `SELECT id, full_name AS "fullName", email
      FROM users
-     WHERE email = $1`,
-    [session.user.email.toLowerCase()]
+     WHERE id = $1`,
+    [Number(session.user.id)]
   );
 
   const user = userResult.rows[0];
@@ -94,17 +95,7 @@ return (
           My Information
         </h2>
 
-        <div className="mt-6 space-y-6">
-          <div>
-            <p className="text-sm text-gray-600">Email</p>
-            <p className="mt-1 break-all">{user.email}</p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-600">Name</p>
-            <p className="mt-1">{user.fullName}</p>
-          </div>
-        </div>
+        <ProfileEditForm fullName={user.fullName} email={user.email} />
       </section>
 
       <section aria-labelledby="bookings-heading">

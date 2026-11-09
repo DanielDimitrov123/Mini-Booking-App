@@ -38,6 +38,11 @@ function makeDateKey(year: number, monthIndex: number, day: number) {
   return `${year}-${month}-${date}`;
 }
 
+type AccountProfile = {
+  fullName: string;
+  email: string;
+};
+
 export default function BookingPage() {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [treatmentId, setTreatmentId] = useState("");
@@ -53,18 +58,47 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState<Date | null>(null);
   const [todayKey, setTodayKey] = useState<string | null>(null);
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
     const today = londonTodayKey();
+
+    // The clock must be read after hydration to avoid Next.js prerendering an unstable Date.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTodayKey(today);
 
     const [year, month] = today.split("-").map(Number);
+
     setVisibleMonth(new Date(year, month - 1, 1));
   }, []);
 
   useEffect(() => {
-    const [year, month] = londonTodayKey().split("-").map(Number);
-    setVisibleMonth(new Date(year, month - 1, 1));
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/profile");
+        if (!response.ok) return;
+
+        const result = await response.json();
+
+        if (result.user) {
+          const accountProfile = {
+            fullName: result.user.fullName,
+            email: result.user.email,
+          };
+
+          setProfile(accountProfile);
+          setFullName(accountProfile.fullName);
+          setEmail(accountProfile.email);
+        }
+      } catch {
+        // A failed profile lookup means the visitor is treated as signed out.
+      } finally {
+        setSessionChecked(true);
+      }
+    }
+
+    void loadProfile();
   }, []);
 
   useEffect(() => {
@@ -73,7 +107,43 @@ export default function BookingPage() {
         const response = await fetch("/api/treatments");
         if (!response.ok) throw new Error();
 
-        setTreatments(await response.json());
+        const loadedTreatments: Treatment[] = await response.json();
+        setTreatments(loadedTreatments);
+
+        const shouldResume =
+          new URLSearchParams(window.location.search).get("resume") === "1";
+        const savedDraft = sessionStorage.getItem("pendingBookingDraft");
+
+        if (shouldResume && savedDraft) {
+          try {
+            const draft = JSON.parse(savedDraft) as {
+              treatmentId?: unknown;
+              date?: unknown;
+              time?: unknown;
+            };
+
+            const validTreatment = loadedTreatments.some(
+              (treatment) => String(treatment.id) === draft.treatmentId
+            );
+
+            if (
+              validTreatment &&
+              typeof draft.date === "string" &&
+              /^\d{4}-\d{2}-\d{2}$/.test(draft.date) &&
+              typeof draft.time === "string" &&
+              /^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time)
+            ) {
+              setTreatmentId(draft.treatmentId as string);
+              setDate(draft.date);
+              setSelectedTime(draft.time);
+
+              const [year, month] = draft.date.split("-").map(Number);
+              setVisibleMonth(new Date(year, month - 1, 1));
+            }
+          } catch {
+            sessionStorage.removeItem("pendingBookingDraft");
+          }
+        }
       } catch {
         setError("Could not load treatments.");
       }
@@ -147,6 +217,16 @@ export default function BookingPage() {
         ),
       ]
     : [];
+  
+    function continueToAuth(destination: "register" | "login") {
+      sessionStorage.setItem(
+        "pendingBookingDraft",
+        JSON.stringify({ treatmentId, date, time: selectedTime })
+      );
+
+      const returnTo = encodeURIComponent("/booking?resume=1");
+      window.location.assign(`/${destination}?returnTo=${returnTo}`);
+    }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -161,8 +241,8 @@ export default function BookingPage() {
           treatmentId: Number(treatmentId),
           date,
           time: selectedTime,
-          fullName,
-          email,
+          fullName: profile?.fullName ?? "",
+          email: profile?.email ?? "",
           postcode,
         }),
       });
@@ -172,6 +252,8 @@ export default function BookingPage() {
       if (!response.ok) {
         throw new Error(result.error ?? "Could not create the booking.");
       }
+      
+      sessionStorage.removeItem("pendingBookingDraft");
 
       setBooking(result.booking as BookingConfirmation);
     } catch (error) {
@@ -387,60 +469,60 @@ export default function BookingPage() {
           )}
 
           {selectedTreatment && selectedTime && (
-            <form onSubmit={handleSubmit} className="space-y-4 border-t pt-5 md:col-span-2">
-              <h2 className="text-xl font-medium">Your details</h2>
+            <section className="space-y-4 border-t pt-5 md:col-span-2">
+              {!sessionChecked ? (
+                <p>Checking your profile…</p>
+              ) : !profile ? (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-medium">Almost there</h2>
+                  <p>Create a profile or log in to finalize your booking.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => continueToAuth("register")}
+                      className="rounded-full bg-black px-5 py-3 font-medium text-white"
+                    >
+                      Create profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => continueToAuth("login")}
+                      className="rounded-full border border-gray-300 px-5 py-3 font-medium"
+                    >
+                      Log in
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <h2 className="text-xl font-medium">Your details</h2>
+                  <p>
+                    Booking as {profile.fullName} ({profile.email})
+                  </p>
 
-              <div>
-                <label htmlFor="fullName" className="block font-medium">
-                  Full name
-                </label>
-                <input
-                  id="fullName"
-                  required
-                  minLength={2}
-                  maxLength={150}
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  className="mt-1 w-full rounded border border-gray-400 p-2"
-                />
-              </div>
+                  <div className="max-w-md">
+                    <label htmlFor="postcode" className="block font-medium">
+                      London postcode
+                    </label>
+                    <input
+                      id="postcode"
+                      required
+                      value={postcode}
+                      onChange={(event) => setPostcode(event.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-300 p-3"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="email" className="block font-medium">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  maxLength={254}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="mt-1 w-full rounded border border-gray-400 p-2"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="postcode" className="block font-medium">
-                  London postcode
-                </label>
-                <input
-                  id="postcode"
-                  required
-                  value={postcode}
-                  onChange={(event) => setPostcode(event.target.value)}
-                  className="mt-1 w-full rounded border border-gray-400 p-2"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
-              >
-                {submitting ? "Booking…" : "Confirm booking"}
-              </button>
-            </form>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="rounded-full bg-black px-5 py-3 font-medium text-white disabled:opacity-50"
+                  >
+                    {submitting ? "Booking…" : "Finalize booking"}
+                  </button>
+                </form>
+              )}
+            </section>
           )}
         </div>
       )}

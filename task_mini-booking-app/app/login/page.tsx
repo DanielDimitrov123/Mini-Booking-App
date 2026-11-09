@@ -4,6 +4,12 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
+function getSafeReturnTo() {
+  const requested = new URLSearchParams(window.location.search).get("returnTo");
+
+  return requested === "/booking?resume=1" ? requested : "/profile";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -16,12 +22,14 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
 
+    const returnTo = getSafeReturnTo();
+
     try {
       const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
-        redirectTo: "/my-bookings",
+        redirectTo: returnTo,
       });
 
       if (result?.error) {
@@ -29,7 +37,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/my-bookings");
+      router.push(returnTo);
       router.refresh();
     } catch {
       setError("Could not sign in. Please try again.");

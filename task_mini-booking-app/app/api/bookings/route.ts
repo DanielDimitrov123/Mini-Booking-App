@@ -112,15 +112,13 @@ export async function POST(request: Request) {
     );
 
     const session = await auth();
-let userId: number | null = null;
+    const userId = Number(session?.user?.id);
 
-    if (session?.user?.email) {
-        const userResult = await pool.query<{ id: number }>(
-            `SELECT id FROM users WHERE email = $1`,
-            [session.user.email.toLowerCase()]
-        );
-        
-        userId = userResult.rows[0]?.id ?? null;
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return Response.json(
+        { error: "Sign in or create a profile to finish booking." },
+        { status: 401 }
+      );
     }
 
     const bookingsResult = await pool.query<{

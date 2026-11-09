@@ -4,9 +4,13 @@ import { canCancelBooking } from "../../../../lib/booking-rules";
 
 export async function POST(request: Request) {
   const session = await auth();
+  const userId = Number(session?.user?.id);
 
-  if (!session?.user?.email) {
-    return Response.json({ error: "Sign in to cancel a booking." }, { status: 401 });
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return Response.json(
+      { error: "Sign in to cancel a booking." },
+      { status: 401 }
+    );
   }
 
   const rawBody: unknown = await request.json().catch(() => null);
@@ -28,16 +32,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const userResult = await pool.query<{ id: number }>(
-      `SELECT id FROM users WHERE email = $1`,
-      [session.user.email.toLowerCase()]
-    );
-
-    const userId = userResult.rows[0]?.id;
-    if (!userId) {
-      return Response.json({ error: "Account not found." }, { status: 401 });
-    }
-
     const bookingResult = await pool.query<{
       startsAt: Date;
       status: string;

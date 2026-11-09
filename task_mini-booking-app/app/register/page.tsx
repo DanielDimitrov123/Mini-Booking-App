@@ -3,6 +3,12 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 
+function getSafeReturnTo() {
+  const requested = new URLSearchParams(window.location.search).get("returnTo");
+
+  return requested === "/booking?resume=1" ? requested : "/profile";
+}
+
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,11 +34,13 @@ export default function RegisterPage() {
         throw new Error(result.error ?? "Could not create your account.");
       }
 
+      const returnTo = getSafeReturnTo();
+
       const signInResult = await signIn("credentials", {
         email,
         password,
         redirect: false,
-        redirectTo: "/my-bookings",
+        redirectTo: returnTo,
       });
 
       if (signInResult?.error || !signInResult?.url) {
