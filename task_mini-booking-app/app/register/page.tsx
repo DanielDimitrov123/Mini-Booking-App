@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,12 +35,12 @@ export default function RegisterPage() {
         redirectTo: "/my-bookings",
       });
 
-      if (signInResult?.error) {
+      if (signInResult?.error || !signInResult?.url) {
         throw new Error("Account created, but automatic sign-in failed. Please sign in.");
       }
 
-      router.push("/my-bookings");
-      router.refresh();
+      window.location.assign(signInResult.url);
+      return;
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Could not create your account."

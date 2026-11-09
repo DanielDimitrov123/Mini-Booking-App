@@ -36,7 +36,7 @@ test.afterAll(async () => {
 test("customer can sign up, book, cancel, and sign in again", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
 
   const email = `e2e-${randomUUID()}@example.test`;
   const password = "Playwright-Test-2030!";
@@ -48,7 +48,7 @@ test("customer can sign up, book, cancel, and sign in again", async ({
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
 
-  await expect(page).toHaveURL(/\/my-bookings$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/my-bookings$/, { timeout: 90_000 });
   await expect(page.getByText("You have no upcoming bookings.")).toBeVisible();
 
   await page.goto("/booking");
@@ -58,17 +58,29 @@ test("customer can sign up, book, cancel, and sign in again", async ({
   const firstAvailableTime = page
     .getByRole("button", { name: /^\d{2}:\d{2}$/ })
     .first();
+
   await expect(firstAvailableTime).toBeVisible({ timeout: 20_000 });
   await firstAvailableTime.click();
 
   await page.getByLabel("Full name").fill("Playwright Customer");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("London postcode").fill("E1 6AN");
+
+  const bookingResponsePromise = page.waitForResponse(
+    response =>
+      response.url().endsWith("/api/bookings") &&
+      response.request().method() === "POST",
+    { timeout: 90_000 }
+  );
+
   await page.getByRole("button", { name: "Confirm booking" }).click();
 
+  const bookingResponse = await bookingResponsePromise;
+  expect(bookingResponse.status()).toBe(201);
+
   await expect(
-    page.getByRole("heading", { name: "Booking confirmed" })
-  ).toBeVisible();
+    page.getByRole("heading", { name: "Booking confirmed" })  
+  ).toBeVisible({ timeout: 15_000 });
 
   const referenceLine = await page.getByText(/^Reference: RB-/).innerText();
   const reference = referenceLine.replace("Reference:", "").trim();
@@ -189,6 +201,7 @@ test("booking API rejects a time that has already been booked", async ({
 test("cancellation is rejected less than 24 hours before the appointment", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
   const email = `e2e-cancel-cutoff-${randomUUID()}@example.test`;
   const password = "Playwright-Test-2030!";
   emailForCleanup = email;

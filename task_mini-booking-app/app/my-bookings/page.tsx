@@ -3,7 +3,7 @@ import { auth, signOut } from "../../auth";
 import { pool } from "../../lib/db";
 import { canCancelBooking } from "../../lib/booking-rules";
 import { CancelButton } from "./cancel-button";
-// export const instant = false;
+export const instant = false;
 
 type UpcomingBooking = {
   status: string;
