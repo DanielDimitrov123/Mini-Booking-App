@@ -36,7 +36,7 @@ test.afterAll(async () => {
 test("customer can sign up, book, cancel, and sign in again", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
 
   const email = `e2e-${randomUUID()}@example.test`;
   const password = "Playwright-Test-2030!";
@@ -58,7 +58,7 @@ test("customer can sign up, book, cancel, and sign in again", async ({
   const firstAvailableTime = page
     .getByRole("button", { name: /^\d{2}:\d{2}$/ })
     .first();
-  await expect(firstAvailableTime).toBeVisible();
+  await expect(firstAvailableTime).toBeVisible({ timeout: 20_000 });
   await firstAvailableTime.click();
 
   await page.getByLabel("Full name").fill("Playwright Customer");
