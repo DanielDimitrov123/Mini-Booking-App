@@ -15,7 +15,7 @@ const currency = new Intl.NumberFormat("en-GB", {
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto w-full max-w-6xl p-6 sm:p-10">
       <h1 className="text-3xl font-semibold">Book a treatment</h1>
       <p className="mt-2 text-gray-600">
         Choose from our available treatments.
@@ -27,7 +27,7 @@ export default function HomePage() {
 
       <a
         href="/booking"
-        className="mt-4 inline-block rounded bg-black px-4 py-2 text-white"
+        className="mx-auto mt-8 block w-fit rounded-full bg-black px-6 py-3 font-medium text-white"
       >
         Start booking
       </a>
@@ -48,13 +48,13 @@ async function TreatmentList() {
   `);
 
   return (
-    <ul className="mt-6 space-y-4">
+    <ul className="mt-8 grid gap-5 sm:grid-cols-2">
       {result.rows.map((treatment) => (
         <li
           key={treatment.id}
-          className="rounded-lg border border-gray-300 p-4"
+          className="flex min-h-44 flex-col justify-center rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
         >
-          <h2 className="text-xl font-medium">{treatment.name}</h2>
+          <h2 className="text-2xl font-semibold">{treatment.name}</h2>
           <p className="mt-1 text-gray-600">
             {treatment.durationMinutes} minutes
           </p>
