@@ -17,6 +17,27 @@ type BookingConfirmation = {
   pricePence: number;
 };
 
+function londonTodayKey() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+
+  return `${year}-${month}-${day}`;
+}
+
+function makeDateKey(year: number, monthIndex: number, day: number) {
+  const month = String(monthIndex + 1).padStart(2, "0");
+  const date = String(day).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+}
+
 export default function BookingPage() {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [treatmentId, setTreatmentId] = useState("");
@@ -30,6 +51,21 @@ export default function BookingPage() {
   const [error, setError] = useState("");
   const [loadingTimes, setLoadingTimes] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState<Date | null>(null);
+  const [todayKey, setTodayKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const today = londonTodayKey();
+    setTodayKey(today);
+
+    const [year, month] = today.split("-").map(Number);
+    setVisibleMonth(new Date(year, month - 1, 1));
+  }, []);
+
+  useEffect(() => {
+    const [year, month] = londonTodayKey().split("-").map(Number);
+    setVisibleMonth(new Date(year, month - 1, 1));
+  }, []);
 
   useEffect(() => {
     async function loadTreatments() {
@@ -89,6 +125,29 @@ export default function BookingPage() {
     (treatment) => String(treatment.id) === treatmentId
   );
 
+  const calendarCells: (number | null)[] = visibleMonth
+    ? [
+        ...Array(
+          (new Date(
+            visibleMonth.getFullYear(),
+            visibleMonth.getMonth(),
+            1
+          ).getDay() + 6) %
+            7
+        ).fill(null),
+        ...Array.from(
+          {
+            length: new Date(
+              visibleMonth.getFullYear(),
+              visibleMonth.getMonth() + 1,
+              0
+            ).getDate(),
+          },
+          (_, index) => index + 1
+        ),
+      ]
+    : [];
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -125,7 +184,7 @@ export default function BookingPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto w-full max-w-6xl p-6 sm:p-10">
       <h1 className="text-3xl font-semibold">Choose your appointment</h1>
       <p className="mt-2 text-gray-600">
         Choose a treatment and a time that works for you.
@@ -148,8 +207,8 @@ export default function BookingPage() {
           </p>
         </section>
       ) : (
-        <div className="mt-6 space-y-5">
-          <div>
+        <div className="mt-8 grid gap-8 md:grid-cols-2">
+          <div className="max-w-2xl rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:col-span-2">
             <label htmlFor="treatment" className="block font-medium">
               Treatment
             </label>
@@ -165,7 +224,7 @@ export default function BookingPage() {
                 setError("");
                 setBooking(null);
               }}
-              className="mt-1 w-full rounded border border-gray-400 p-2"
+              className="mt-2 w-full rounded-lg border border-gray-300 bg-white p-3"
             >
               <option value="">Choose a treatment</option>
               {treatments.map((treatment) => (
@@ -177,28 +236,118 @@ export default function BookingPage() {
             </select>
           </div>
 
-          <div>
-            <label htmlFor="date" className="block font-medium">
-              Date
-            </label>
-            <input
-              id="date"
-              type="date"
-              required
-              value={date}
-              onChange={(event) => {
-                setDate(event.target.value);
-                setSelectedTime("");
-                setAvailableTimes([]);
-                setLoadingTimes(false);
-                setError("");
-                setBooking(null);
-              }}
-              className="mt-1 w-full rounded border border-gray-400 p-2"
-            />
-          </div>
+          <section
+            aria-labelledby="date-heading"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                type="button"
+                aria-label="Previous month"
+                disabled={
+                  !visibleMonth ||
+                  !todayKey ||
+                  makeDateKey(
+                    visibleMonth.getFullYear(),
+                    visibleMonth.getMonth(),
+                    1
+                  ).slice(0, 7) <= todayKey.slice(0, 7)
+                }
+                onClick={() => {
+                  setVisibleMonth((month) =>
+                    month
+                      ? new Date(month.getFullYear(), month.getMonth() - 1, 1)
+                      : month
+                  );
+                }}
+                className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40"
+              >
+                ‹
+              </button>
 
-          {error && <p role="alert">{error}</p>}
+              <h2 id="date-heading" className="font-medium">
+                {visibleMonth
+                  ? new Intl.DateTimeFormat("en-GB", {
+                      month: "long",
+                      year: "numeric",
+                    }).format(visibleMonth)
+                  : "Loading calendar…"}
+              </h2>
+
+              <button
+                type="button"
+                aria-label="Next month"
+                disabled={!visibleMonth}
+                onClick={() => {
+                  setVisibleMonth((month) =>
+                    month
+                      ? new Date(month.getFullYear(), month.getMonth() + 1, 1)
+                      : month
+                  );
+                }}
+                className="rounded border border-gray-300 px-3 py-1 disabled:opacity-40"
+              >
+                ›
+                </button>
+              </div>
+
+            <div className="grid grid-cols-7 gap-2 text-center text-sm">
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((weekday) => (
+                <div
+                  key={weekday}
+                className={weekday === "Sun" ? "py-2 text-red-600" : "py-2"}
+                >
+                  {weekday}
+                </div>
+              ))}
+
+              {calendarCells.map((day, index) => {
+                if (day === null) {
+                  return <div key={`empty-${index}`} aria-hidden="true" />;
+                }
+
+                const year = visibleMonth!.getFullYear();
+                const monthIndex = visibleMonth!.getMonth();
+                const dateKey = makeDateKey(year, monthIndex, day);
+                const isSunday = index % 7 === 6;
+                const isPast = !todayKey || dateKey < todayKey;
+                const isDisabled = isSunday || isPast;
+                const isSelected = date === dateKey;
+
+                return (
+                  <button
+                    key={dateKey}
+                    type="button"
+                    aria-label={`${day} ${new Intl.DateTimeFormat("en-GB", {
+                      month: "long",
+                      year: "numeric",
+                    }).format(visibleMonth!)}`}
+                    aria-pressed={isSelected}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      setDate(dateKey);
+                      setSelectedTime("");
+                      setAvailableTimes([]);
+                      setLoadingTimes(false);
+                      setError("");
+                      setBooking(null);
+                    }}
+                    className={`aspect-square rounded-lg border text-sm ${
+                      isSelected
+                        ? "border-black bg-black text-white"
+                        : isSunday
+                          ? "border-gray-200 text-red-600"
+                          : "border-gray-200 hover:border-black"
+                    } disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {error && <p role="alert" className="md:col-span-2">{error}</p>}
 
           {treatmentId && date && (
             <section aria-labelledby="times-heading">
@@ -238,7 +387,7 @@ export default function BookingPage() {
           )}
 
           {selectedTreatment && selectedTime && (
-            <form onSubmit={handleSubmit} className="space-y-4 border-t pt-5">
+            <form onSubmit={handleSubmit} className="space-y-4 border-t pt-5 md:col-span-2">
               <h2 className="text-xl font-medium">Your details</h2>
 
               <div>
