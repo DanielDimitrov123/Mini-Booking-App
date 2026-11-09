@@ -2,7 +2,7 @@
   "name": "task_mini-booking-app",
   "version": "0.1.0",
   "private": true,
- "scripts": {
+  "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.3.5",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
