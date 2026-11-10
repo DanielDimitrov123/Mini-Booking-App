@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",

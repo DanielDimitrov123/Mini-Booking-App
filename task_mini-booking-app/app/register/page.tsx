@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 
 function getSafeReturnTo() {
@@ -15,7 +15,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [clientReady, setClientReady] = useState(false);
 
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setClientReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -47,7 +53,7 @@ export default function RegisterPage() {
         throw new Error("Account created, but automatic sign-in failed. Please sign in.");
       }
 
-      window.location.assign(signInResult.url);
+      window.location.assign(returnTo);
       return;
     } catch (error) {
       setError(
@@ -113,7 +119,7 @@ export default function RegisterPage() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={!clientReady || submitting}
           className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
         >
           {submitting ? "Creating account…" : "Create account"}

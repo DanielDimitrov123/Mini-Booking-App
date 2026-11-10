@@ -83,7 +83,7 @@ npx playwright install chromium
 - `/booking` — choose a treatment, date, time, and enter customer details
 - `/register` — create an account
 - `/login` — sign in
-- `/my-bookings` — view and manage your upcoming bookings
+- `/profile` — view and manage your profile and upcoming bookings
 
 The app also provides API routes for treatments, availability, bookings, authentication, and a database health check.
 
@@ -105,3 +105,4 @@ The tests use the database configured in `.env.local` and create temporary test 
 ```bash
 npm run test:e2e
 ```
+

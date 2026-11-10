@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { auth } from "../auth";
-
+import { connection } from "next/server";
+  
 export async function SiteHeader() {
+  await connection();
   const session = await auth();
   const signedIn = Boolean(session?.user);
 
